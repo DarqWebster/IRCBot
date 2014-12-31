@@ -24,6 +24,8 @@ def msgparse(rawmsg):
     return IRCMsg(prefix, command, params, trailing)
 
 class Bot:
+    errmsg_invalidfunction = "Hmmm?"
+    
     def __init__(self, serv, port, nick, chans, plugins):
         self.serv = serv
         self.port = port
@@ -117,5 +119,5 @@ class Bot:
                     if (result):
                         self.irc_sendmsg(target, result)
                 else:
-                    self.irc_sendmsg(target, "Hmmm?")
+                    self.irc_sendmsg(target, Bot.errmsg_invalidfunction)
 
