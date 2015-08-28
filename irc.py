@@ -1,3 +1,4 @@
+import logging
 import importlib
 import socket
 import collections
@@ -41,33 +42,44 @@ class Bot:
         self.cont = 1;
         self.definefunctions()
         self.connecttoirc();
-        self.join();
+        self.join()
         self.loop();
+    
+    def send(self, msg):
+    	logging.debug("Send: " + msg)
+    	self.sock.send(msg.encode("UTF-8"))
 
     # IRC functions.
-    def irc_ping(self):
-        self.sock.send("PONG :Pong.\n".encode("UTF-8"))
+    def irc_ping(self, trailing):
+        self.send("PONG :" + trailing + "\n")
 
     def irc_sendmsg(self, target, msg):
-        self.sock.send(("PRIVMSG " + target + " :" + msg + "\n").encode("UTF-8"))
+        self.send("PRIVMSG " + target + " :" + msg + "\n")
 
     def irc_joinchan(self, chan):
-        self.sock.send(("JOIN " + chan + "\n").encode("UTF-8"))
+        self.send("JOIN " + chan + "\n")
 
     def irc_quitserv(self, msg):
-        self.sock.send(("QUIT :" + msg + "\n").encode("UTF-8"))
+        self.send("QUIT :" + msg + "\n")
 
     # Bot functions.
     def echo(self, msg):
         return msg
+    
+    def joinchan(self, msg):
+        self.irc_joinchan(msg)
 
     def quitserv(self, msg):
         self.irc_quitserv(msg)
         self.cont = 0;
+    
+    #CTCP functions.
+    def ctcp_version(self, msg):
+        self.send("VERSION DarqBot 0.0.0 Snapshot.")
 
     # Operational functions.
     def definefunctions(self):
-        self.functions = {"echo":self.echo, "quit":self.quitserv}
+        self.functions = {, "echo":self.echo, "join":self.irc_joinchan, "quit":self.quitserv}
         for plugin in self.plugins:
             plugin = importlib.import_module("plugin." + plugin)
             instance = plugin.getinstance()
@@ -75,8 +87,8 @@ class Bot:
     
     def connecttoirc(self):
         self.sock.connect((self.serv, self.port))
-        self.sock.send(("USER " + self.nick + " " + self.nick + " " + self.nick + " " + self.nick + "\n").encode("UTF-8"))
-        self.sock.send(("NICK " + self.nick + "\n").encode("UTF-8"))
+        self.send("USER " + self.nick + " " + self.nick + " " + self.nick + " " + self.nick + "\n")
+        self.send("NICK " + self.nick + "\n")
 
     def join(self):
         for chan in self.chans:
@@ -88,15 +100,14 @@ class Bot:
             raw = buffer + self.sock.recv(2048).decode()
             rawmsgs = raw.split("\r\n")
             for rawmsg in rawmsgs[:-1]:
-                print(rawmsg)
                 self.line(msgparse(rawmsg))
             buffer = rawmsgs[-1]
 
     def line(self, msg):
-        print(msg)
+        logging.debug("Recv: " + str(msg))
         
         if msg.command == "PING":
-            self.irc_ping()
+            self.irc_ping(msg.trailing)
             return
 
         if msg.command == "PRIVMSG":
